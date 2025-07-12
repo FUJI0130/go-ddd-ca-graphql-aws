@@ -1,0 +1,15 @@
+schema: http://localhost:8080/query
+documents: "./src/graphql/**/*.graphql"
+generates:
+  src/generated/graphql.tsx:
+    plugins:
+      - "typescript"
+      - "typescript-operations"
+      - "typescript-react-apollo"
+    config:
+      withHooks: true
+      withComponent: false
+      withHOC: false
+      skipTypename: false
+      avoidOptionals: true
+      reactApolloVersion: 3

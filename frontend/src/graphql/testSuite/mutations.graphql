@@ -1,0 +1,14 @@
+mutation CreateTestSuite($input: CreateTestSuiteInput!) {
+  createTestSuite(input: $input) {
+    id
+    name
+    description
+    status
+    estimatedStartDate
+    estimatedEndDate
+    requireEffortComment
+    progress
+    createdAt
+    updatedAt
+  }
+}

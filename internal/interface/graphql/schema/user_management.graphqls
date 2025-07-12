@@ -1,0 +1,43 @@
+# internal/interface/graphql/schema/user_management.graphqls
+
+# ユーザー管理関連のミューテーション
+extend type Mutation {
+  # 新規ユーザーの作成（管理者権限が必要）
+  createUser(input: CreateUserInput!): User! @hasRole(role: "Admin")
+  
+  # ユーザー自身のパスワード変更（認証が必要）
+  changePassword(oldPassword: String!, newPassword: String!): Boolean! @auth
+  
+  # 他のユーザーのパスワードリセット（管理者権限が必要）
+  resetPassword(userId: ID!, newPassword: String!): Boolean! @hasRole(role: "Admin")
+
+    # 🆕 ユーザーの削除（管理者権限が必要）
+  deleteUser(userId: ID!): Boolean! @hasRole(role: "Admin")
+}
+
+# ユーザー作成入力
+input CreateUserInput {
+  username: String!
+  password: String!
+  role: String!
+}
+
+input UpdateUserInput {
+  username: String!
+  role: String!
+}
+
+extend type Mutation {
+  updateUser(userId: ID!, input: UpdateUserInput!): User! @hasRole(role: "Admin")
+}
+
+# ユーザー管理関連のクエリ
+extend type Query {
+  # ユーザー一覧取得（管理者権限が必要）
+  users: [User!]! @hasRole(role: "Admin")
+  
+  # 特定ユーザーの取得（管理者権限が必要）
+  user(id: ID!): User @hasRole(role: "Admin")
+}
+
+

@@ -1,0 +1,26 @@
+# configs/development.yml
+# テストケース管理システム - 開発環境設定ファイル
+# 
+# このファイルはローカル開発環境向けの設定です。
+# 注意: AWS/クラウド環境では、このファイルは使用されず、環境変数のみが使用されます。
+# 12-Factor原則に従い、環境変数 > 設定ファイル > デフォルト値の優先順位で設定が適用されます。
+
+environment: development
+
+server:
+  port: 8080            # APIサーバーのポート番号
+  readTimeout: 15s      # リクエスト読み取りタイムアウト
+  writeTimeout: 15s     # レスポンス書き込みタイムアウト
+
+database:
+  driver: postgres      # データベースドライバー
+  host: localhost       # データベースホスト (ローカル開発用)
+  port: 5432            # PostgreSQLデフォルトポート
+  user: testuser        # 開発用データベースユーザー
+  password: testpass    # 開発用パスワード (本番環境では環境変数を使用)
+  dbname: test_management  # データベース名
+  sslmode: disable      # 開発環境ではSSL無効
+
+auth:
+  jwtSecret: dev-secret-key-change-in-production  # 開発用JWTシークレット
+  tokenDuration: 24h    # 開発環境では長めのトークン有効期間を設定

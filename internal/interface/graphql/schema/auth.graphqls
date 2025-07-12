@@ -1,0 +1,39 @@
+# ディレクティブの定義
+directive @auth on FIELD_DEFINITION
+directive @hasRole(role: String!) on FIELD_DEFINITION
+
+# User型の定義（認証関連）
+type User {
+  id: ID!
+  username: String!
+  role: String!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  lastLoginAt: DateTime
+}
+
+# 認証レスポンスペイロード
+type AuthPayload {
+  token: String!
+  refreshToken: String!
+  user: User!
+  expiresAt: DateTime!
+}
+
+# 認証関連のミューテーション
+extend type Mutation {
+  # ログイン操作：ユーザー名とパスワードでユーザーを認証し、トークンを取得
+  login(username: String!, password: String!): AuthPayload!
+  
+  # トークン更新：リフレッシュトークンを使用して新しいアクセストークンを取得
+  refreshToken(refreshToken: String!): AuthPayload!
+  
+  # ログアウト：リフレッシュトークンを無効化
+  logout(refreshToken: String!): Boolean! @auth
+}
+
+# 認証関連のクエリ
+extend type Query {
+  # 認証済みユーザー情報取得
+  me: User! @auth
+}

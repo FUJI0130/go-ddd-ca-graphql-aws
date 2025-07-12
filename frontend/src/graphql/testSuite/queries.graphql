@@ -1,0 +1,45 @@
+fragment TestSuiteFields on TestSuite {
+  id
+  name
+  description
+  status
+  estimatedStartDate
+  estimatedEndDate
+  requireEffortComment
+  progress
+  createdAt
+  updatedAt
+}
+
+query GetTestSuiteList($status: SuiteStatus, $page: Int, $pageSize: Int) {
+  testSuites(status: $status, page: $page, pageSize: $pageSize) {
+    edges {
+      node {
+        ...TestSuiteFields
+      }
+      cursor
+    }
+    pageInfo {
+      hasNextPage
+      hasPreviousPage
+      startCursor
+      endCursor
+    }
+    totalCount
+  }
+}
+
+query GetTestSuiteDetail($id: ID!) {
+  testSuite(id: $id) {
+    ...TestSuiteFields
+    groups {
+      id
+      name
+      description
+      displayOrder
+      status
+      createdAt
+      updatedAt
+    }
+  }
+}

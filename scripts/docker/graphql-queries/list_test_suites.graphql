@@ -1,0 +1,13 @@
+query ListTestSuites {
+  testSuites {
+    edges {
+      node {
+        id
+        name
+        status
+        progress
+      }
+    }
+    totalCount
+  }
+}

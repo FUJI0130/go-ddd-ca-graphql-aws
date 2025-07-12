@@ -1,0 +1,55 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        SERVICE_TYPE: ${SERVICE_TYPE:-api}
+        VERSION: dev-${SERVICE_TYPE:-api}
+    container_name: test-management-${SERVICE_TYPE:-api}
+    environment:
+      - APP_ENVIRONMENT=development
+      - SERVICE_TYPE=${SERVICE_TYPE:-api}
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=testuser
+      - DB_PASS=testpass
+      - DB_NAME=test_management
+    ports:
+      - "${PORT:-8080}:8080"
+      - "${GRPC_PORT:-50051}:50051"
+    depends_on:
+      - postgres
+    networks:
+      - app_network
+    restart: unless-stopped
+
+  postgres:
+    image: postgres:14.13
+    container_name: test_management_db
+    environment:
+      POSTGRES_USER: testuser
+      POSTGRES_PASSWORD: testpass
+      POSTGRES_DB: test_management
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgresql/init:/docker-entrypoint-initdb.d
+    networks:
+      - app_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U testuser -d test_management"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+networks:
+  app_network:
+    driver: bridge
+
+volumes:
+  postgres_data:

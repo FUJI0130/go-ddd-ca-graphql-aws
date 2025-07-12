@@ -1,0 +1,11 @@
+# @hasRoleディレクティブテスト用API
+extend type Query {
+  # 管理者のみアクセス可能
+  adminData: String! @hasRole(role: "Admin")
+  
+  # 管理者のみアクセス可能
+  managerData: String! @hasRole(role: "Manager")
+  
+  # テスターのみアクセス可能
+  testerData: String! @hasRole(role: "Tester")
+}

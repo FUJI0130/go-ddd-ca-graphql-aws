@@ -1,0 +1,51 @@
+# environments/development/terraform.tfvars
+
+aws_region  = "ap-northeast-1"
+environment = "development"
+
+# VPC設定
+vpc_cidr           = "10.0.0.0/16"
+availability_zones = ["ap-northeast-1a", "ap-northeast-1c"]
+public_subnets     = ["10.0.1.0/24", "10.0.2.0/24"]
+private_subnets    = ["10.0.10.0/24", "10.0.11.0/24"]
+
+# データベース設定
+db_name                  = "test_management_dev"
+db_instance_class        = "db.t3.small"
+db_allocated_storage     = 20
+db_max_allocated_storage = 100
+db_backup_retention = 7
+
+# 共通アプリケーション設定
+app_name   = "test-management"
+app_cpu    = 256
+app_memory = 512
+
+# アプリケーション環境変数
+app_environment = {
+  "ENV"       = "development"
+  "LOG_LEVEL" = "debug"
+}
+
+# API service
+api_image = "YOUR_AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/development-test-management-api:latest"
+api_port  = 8080
+api_count = 1
+
+# GraphQL service
+graphql_image = "YOUR_AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/development-test-management-graphql:latest"
+graphql_port  = 8080
+graphql_count = 1
+
+# gRPC service
+grpc_image = "YOUR_AWS_ACCOUNT_ID.dkr.ecr.ap-northeast-1.amazonaws.com/development-test-management-grpc:latest"
+grpc_port  = 50051
+grpc_count = 1
+
+route53_zone_id = "YOUR_ROUTE53_ZONE_ID"
+
+# 検証済み証明書ARN（マネジメントコンソールで作成・検証後に設定）
+certificate_arn = "arn:aws:acm:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:certificate/YOUR_CERTIFICATE_ID"
+
+# JWT認証設定
+jwt_secret = "YOUR_JWT_SECRET_64_CHARACTERS"

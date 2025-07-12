@@ -1,0 +1,26 @@
+--- main.tf.orig	2025-04-07 14:00:00.000000000 +0900
++++ main.tf	2025-04-07 14:30:00.000000000 +0900
+@@ -130,6 +130,7 @@
+   db_user         = var.db_username
+   db_sslmode      = "require"
+   db_password_arn = module.secrets.db_password_arn
++  target_group_arn = module.loadbalancer_api.target_group_arn
+ 
+   depends_on = [module.shared_ecs_cluster, module.database]
+ }
+@@ -155,6 +156,7 @@
+   db_user         = var.db_username
+   db_sslmode      = "require"
+   db_password_arn = module.secrets.db_password_arn
++  target_group_arn = module.loadbalancer_graphql.target_group_arn
+ 
+   depends_on = [module.shared_ecs_cluster, module.database]
+ }
+@@ -181,6 +183,7 @@
+   db_user         = var.db_username
+   db_sslmode      = "require"
+   db_password_arn = module.secrets.db_password_arn
++  target_group_arn = module.loadbalancer_grpc.target_group_arn
+ 
+   depends_on = [module.shared_ecs_cluster, module.database]
+ }

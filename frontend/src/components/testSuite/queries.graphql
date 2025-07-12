@@ -1,0 +1,29 @@
+# src/graphql/testSuite/queries.graphql
+
+# テストスイート基本フラグメント
+fragment TestSuiteFields on TestSuite {
+  id
+  name
+  description
+  status
+  estimatedStartDate
+  estimatedEndDate
+  requireEffortComment
+  progress
+  createdAt
+  updatedAt
+}
+
+# テストスイート一覧取得（最もシンプルな形）
+query GetTestSuiteList {
+  testSuites {
+    ...TestSuiteFields
+  }
+}
+
+# テストスイート詳細取得
+query GetTestSuiteDetail($id: ID!) {
+  testSuite(id: $id) {
+    ...TestSuiteFields
+  }
+}

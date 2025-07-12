@@ -1,0 +1,20 @@
+.App {
+    padding: 2rem;
+}
+
+.App-header {
+    background-color: #282c34;
+    padding: 2rem;
+    color: white;
+    border-radius: 8px;
+}
+
+.App-header h1 {
+    font-size: 2rem;
+    margin-bottom: 1rem;
+}
+
+.App-header p {
+    font-size: 1.1rem;
+    margin: 0.5rem 0;
+}

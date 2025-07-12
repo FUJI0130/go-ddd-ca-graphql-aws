@@ -1,0 +1,9 @@
+.env.production
+**/.terraform/
+# Terraform provider binaries (具体的除外)
+**/terraform-provider-*
+**/.terraform/providers/
+**/.terraform/modules/
+**/.terraform/terraform.tfstate
+.terraform.lock.hcl
+*.tfplan

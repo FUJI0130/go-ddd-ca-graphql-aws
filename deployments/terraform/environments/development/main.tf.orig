@@ -1,0 +1,245 @@
+terraform {
+  required_version = ">= 1.0.0"
+  required_providers {
+    aws = {
+      source  = "hashicorp/aws"
+      version = "~> 4.0"
+    }
+  }
+  # バックエンド設定
+  # S3バケットとDynamoDBテーブルは作成済み
+  backend "s3" {
+    bucket         = "terraform-state-testmgmt"
+    key            = "development/terraform.tfstate"
+    region         = "ap-northeast-1"
+    encrypt        = true
+    dynamodb_table = "terraform-state-lock"
+  }
+}
+
+provider "aws" {
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      Environment = "development"
+      Project     = "test-management"
+      ManagedBy   = "terraform"
+    }
+  }
+}
+
+# VPCとネットワークモジュール（既存のまま）
+module "networking" {
+  source             = "../../modules/networking"
+  environment        = var.environment
+  vpc_cidr           = var.vpc_cidr
+  availability_zones = var.availability_zones
+  public_subnets     = var.public_subnets
+  private_subnets    = var.private_subnets
+}
+
+# データベースモジュール（既存のまま）
+module "database" {
+  source                   = "../../modules/database"
+  environment              = var.environment
+  vpc_id                   = module.networking.vpc_id
+  private_subnet_ids       = module.networking.private_subnet_ids
+  db_name                  = var.db_name
+  db_instance_class        = var.db_instance_class
+  db_allocated_storage     = var.db_allocated_storage
+  db_max_allocated_storage = var.db_max_allocated_storage
+  db_username              = var.db_username
+  db_password              = var.db_password
+  db_backup_retention      = var.db_backup_retention
+  depends_on               = [module.networking]
+}
+
+# 共有ECSクラスターモジュール（新規）
+module "shared_ecs_cluster" {
+  source      = "../../modules/shared/ecs-cluster"
+  environment = var.environment
+  region      = var.aws_region
+}
+
+# APIサービス
+module "service_api" {
+  source                  = "../../modules/service/ecs-service"
+  environment             = var.environment
+  service_name            = "api"
+  cluster_id              = module.shared_ecs_cluster.cluster_id
+  cluster_name            = module.shared_ecs_cluster.cluster_name
+  task_execution_role_arn = module.shared_ecs_cluster.task_execution_role_arn
+  vpc_id                  = module.networking.vpc_id
+  subnet_ids              = module.networking.private_subnet_ids
+  region                  = var.aws_region
+
+  image_uri      = var.api_image
+  container_port = var.api_port
+  desired_count  = var.api_count
+  cpu            = var.app_cpu
+  memory         = var.app_memory
+
+  # 既存の環境変数設定
+  environment_variables = merge(var.app_environment, {
+    APP_ENVIRONMENT = var.environment
+    SERVICE_TYPE    = "api"
+  })
+
+  # データベース接続パラメータを追加
+  db_host         = module.database.db_instance_address
+  db_port         = "5432"
+  db_name         = var.db_name
+  db_user         = var.db_username
+  db_sslmode      = "require"
+  db_password_arn = module.secrets.db_password_arn
+
+  depends_on = [module.shared_ecs_cluster, module.database]
+}
+
+# GraphQLサービス
+module "service_graphql" {
+  source                  = "../../modules/service/ecs-service"
+  environment             = var.environment
+  service_name            = "graphql"
+  cluster_id              = module.shared_ecs_cluster.cluster_id
+  cluster_name            = module.shared_ecs_cluster.cluster_name
+  task_execution_role_arn = module.shared_ecs_cluster.task_execution_role_arn
+  vpc_id                  = module.networking.vpc_id
+  subnet_ids              = module.networking.private_subnet_ids
+  region                  = var.aws_region
+
+  image_uri      = var.graphql_image
+  container_port = var.graphql_port
+  desired_count  = var.graphql_count
+  cpu            = var.app_cpu
+  memory         = var.app_memory
+
+  # 既存の環境変数設定
+  environment_variables = merge(var.app_environment, {
+    APP_ENVIRONMENT = var.environment
+    SERVICE_TYPE    = "graphql"
+  })
+
+  # データベース接続パラメータを追加
+  db_host         = module.database.db_instance_address
+  db_port         = "5432"
+  db_name         = var.db_name
+  db_user         = var.db_username
+  db_sslmode      = "require"
+  db_password_arn = module.secrets.db_password_arn
+
+  depends_on = [module.shared_ecs_cluster, module.database]
+}
+
+
+# gRPCサービス
+module "service_grpc" {
+  source                  = "../../modules/service/ecs-service"
+  environment             = var.environment
+  service_name            = "grpc"
+  cluster_id              = module.shared_ecs_cluster.cluster_id
+  cluster_name            = module.shared_ecs_cluster.cluster_name
+  task_execution_role_arn = module.shared_ecs_cluster.task_execution_role_arn
+  vpc_id                  = module.networking.vpc_id
+  subnet_ids              = module.networking.private_subnet_ids
+  region                  = var.aws_region
+
+  image_uri      = var.grpc_image
+  container_port = var.grpc_port
+  desired_count  = var.grpc_count
+  cpu            = var.app_cpu
+  memory         = var.app_memory
+
+  # 既存の環境変数設定にgRPC固有の設定を含める
+  environment_variables = merge(var.app_environment, {
+    APP_ENVIRONMENT = var.environment
+    SERVICE_TYPE    = "grpc"
+    GRPC_PORT       = var.grpc_port
+  })
+
+  # データベース接続パラメータを追加
+  db_host         = module.database.db_instance_address
+  db_port         = "5432"
+  db_name         = var.db_name
+  db_user         = var.db_username
+  db_sslmode      = "require"
+  db_password_arn = module.secrets.db_password_arn
+
+  depends_on = [module.shared_ecs_cluster, module.database]
+}
+
+# APIサービス用ロードバランサー
+module "loadbalancer_api" {
+  source                           = "../../modules/service/load-balancer"
+  environment                      = var.environment
+  service_name                     = "api"
+  service_type                     = "api"
+  vpc_id                           = module.networking.vpc_id
+  public_subnet_ids                = module.networking.public_subnet_ids
+  container_port                   = var.api_port
+  health_check_path                = "/health"
+  health_check_protocol            = "HTTP"
+  health_check_port                = "traffic-port"
+  health_check_interval            = 30
+  health_check_timeout             = 5
+  health_check_healthy_threshold   = 3
+  health_check_unhealthy_threshold = 3
+  health_check_matcher             = "200"
+  enable_https                     = false
+  certificate_arn                  = ""
+
+  depends_on = [module.service_api]
+}
+
+# GraphQLサービス用ロードバランサー
+module "loadbalancer_graphql" {
+  source                           = "../../modules/service/load-balancer"
+  environment                      = var.environment
+  service_name                     = "graphql"
+  service_type                     = "graphql"
+  vpc_id                           = module.networking.vpc_id
+  public_subnet_ids                = module.networking.public_subnet_ids
+  container_port                   = var.graphql_port
+  health_check_path                = "/health"
+  health_check_protocol            = "HTTP"
+  health_check_port                = "traffic-port"
+  health_check_interval            = 45 # GraphQL固有の設定
+  health_check_timeout             = 8  # GraphQL固有の設定
+  health_check_healthy_threshold   = 3
+  health_check_unhealthy_threshold = 3
+  health_check_matcher             = "200"
+  enable_https                     = false
+  certificate_arn                  = ""
+
+  depends_on = [module.service_graphql]
+}
+
+# gRPCサービス用ロードバランサー
+module "loadbalancer_grpc" {
+  source                           = "../../modules/service/load-balancer"
+  environment                      = var.environment
+  service_name                     = "grpc"
+  service_type                     = "grpc" # 明示的に指定
+  vpc_id                           = module.networking.vpc_id
+  public_subnet_ids                = module.networking.public_subnet_ids
+  container_port                   = var.grpc_port
+  health_check_path                = "/health-http" # gRPC向けの特別なHTTPヘルスチェックパス
+  health_check_timeout             = 10             # gRPC固有の設定
+  health_check_interval            = 60             # gRPC固有の設定
+  health_check_unhealthy_threshold = 5              # gRPC固有の設定
+  enable_https                     = false
+  certificate_arn                  = ""
+
+  depends_on = [module.service_grpc]
+}
+
+# 共有シークレットモジュールの追加
+module "secrets" {
+  source = "../../modules/shared/secrets"
+
+  environment              = var.environment
+  region                   = var.region
+  db_password              = var.db_password
+  task_execution_role_name = module.shared_ecs_cluster.task_execution_role_name
+}

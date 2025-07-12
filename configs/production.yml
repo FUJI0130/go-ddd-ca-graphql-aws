@@ -1,0 +1,27 @@
+# configs/production.yml
+# テストケース管理システム - 本番環境設定ファイル
+#
+# このファイルは本番環境の設定テンプレートです。
+# 実際の本番環境では、セキュリティのため環境変数が使用され、このファイルは使用されません。
+# 環境変数の設定がなかった場合のフォールバック設定として参照されることがあります。
+# ${変数名} の形式で示されている値は、対応する環境変数から取得されます。
+
+environment: production
+
+server:
+  port: 8080            # APIサーバーのポート番号
+  readTimeout: 30s      # 本番環境では長めのタイムアウト設定
+  writeTimeout: 30s     # 本番環境では長めのタイムアウト設定
+
+database:
+  driver: postgres      # データベースドライバー
+  host: ${DB_HOST}      # RDSなどのホスト名 (環境変数から取得)
+  port: ${DB_PORT}      # データベースポート
+  user: ${DB_USER}      # データベースユーザー
+  password: ${DB_PASSWORD}  # データベースパスワード (環境変数のみで設定)
+  dbname: ${DB_NAME}    # データベース名
+  sslmode: ${DB_SSL_MODE}  # 本番環境ではSSLを有効化
+
+auth:
+  jwtSecret: ${JWT_SECRET}  # 本番環境では強力なシークレットを環境変数で設定
+  tokenDuration: 12h    # 本番環境ではセキュリティのため短めの有効期間

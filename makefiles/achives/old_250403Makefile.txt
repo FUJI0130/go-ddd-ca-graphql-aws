@@ -1,0 +1,490 @@
+# テストケース管理システム - 整理されたMakefile
+# 環境変数のデフォルト値設定
+TF_ENV ?= development
+SERVICE_TYPE ?= api
+AWS_REGION ?= ap-northeast-1
+
+# カラー設定
+BLUE := \033[0;34m
+GREEN := \033[0;32m
+YELLOW := \033[0;33m
+RED := \033[0;31m
+NC := \033[0m # No Color
+
+# ヘルプタスク (使用方法説明用)
+.PHONY: help
+help:
+	@echo -e "${BLUE}テストケース管理システム - Makefile使用ガイド${NC}"
+	@echo ""
+	@echo "=== 開発用コマンド ==="
+	@echo "  run               - REST APIサーバーを起動"
+	@echo "  run-graphql       - GraphQLサーバーを起動"
+	@echo "  run-grpc          - gRPCサーバーを起動"
+	@echo "  build             - バイナリをビルド"
+	@echo ""
+	@echo "=== テスト関連コマンド ==="
+	@echo "  test              - 通常のテストを実行"
+	@echo "  test-integration  - リポジトリ層の統合テストを実行"
+	@echo "  test-graphql      - GraphQL統合テストを実行"
+	@echo "  test-all-integration - すべての統合テストを実行"
+	@echo ""
+	@echo "=== Docker関連コマンド ==="
+	@echo "  docker-build-{service} - serviceのDockerイメージをビルド (service: api|graphql|grpc)"
+	@echo "  docker-run-{service}   - serviceのコンテナを起動 (service: api|graphql|grpc)"
+	@echo "  test-docker-{service}  - serviceのDockerテスト実行 (service: api|graphql|grpc)"
+	@echo "  test-docker-all        - すべてのサービスのDockerテスト実行"
+	@echo ""
+	@echo "=== データベース操作 ==="
+	@echo "  db-up             - データベースコンテナを起動"
+	@echo "  db-down           - データベースコンテナを停止"
+	@echo "  migrate           - マイグレーションを実行"
+	@echo "  migrate-down      - マイグレーションをロールバック"
+	@echo ""
+	@echo "=== AWS関連コマンド ==="
+	@echo "  tf-help           - Terraformコマンド使用方法を表示"
+	@echo "  tf-status         - AWSリソースの状態を確認"
+	@echo "  tf-init           - Terraformを初期化"
+	@echo "  tf-plan           - TerraformプランをMODULE指定で作成"
+	@echo "  tf-apply          - Terraformプランを適用"
+	@echo "  deploy-app-workflow - 完全なアプリケーションデプロイを実行"
+	@echo "  prepare-ecr-image - ECRイメージを準備 (SERVICE_TYPE=api|graphql|grpc)"
+	@echo ""
+	@echo "=== 環境変数 ==="
+	@echo "  TF_ENV            - 環境 (development|production) デフォルト: ${TF_ENV}"
+	@echo "  SERVICE_TYPE      - サービスタイプ (api|graphql|grpc) デフォルト: ${SERVICE_TYPE}"
+	@echo ""
+	@echo "=== 使用例 ==="
+	@echo "  make run                           - APIサーバー起動"
+	@echo "  make test-docker-all               - すべてのサービスのテスト実行"
+	@echo "  make deploy-network TF_ENV=production - 本番環境のネットワークデプロイ"
+	@echo "  make prepare-ecr-image SERVICE_TYPE=graphql - GraphQLのECRイメージ準備"
+
+#----------------------------------------
+# 基本開発コマンド
+#----------------------------------------
+.PHONY: run run-graphql run-grpc build test
+
+# アプリケーション起動
+run:
+	go run cmd/api/main.go
+
+run-graphql:
+	go run cmd/graphql/main.go
+
+run-grpc:
+	go run cmd/grpc/main.go
+
+# ビルド
+build:
+	go build -o bin/api cmd/api/main.go
+
+# テスト
+test:
+	go test ./...
+
+#----------------------------------------
+# Protocol Buffers関連
+#----------------------------------------
+.PHONY: proto
+
+proto:
+	protoc --proto_path=. \
+		--go_out=. --go_opt=paths=source_relative \
+		--go-grpc_out=. --go-grpc_opt=paths=source_relative \
+		proto/testsuite/v1/*.proto
+
+#----------------------------------------
+# データベース操作
+#----------------------------------------
+.PHONY: db-up db-down migrate migrate-down test-db-up test-db-down
+
+# データベース起動/停止
+db-up:
+	docker compose -f deployments/docker/docker-compose.yml up -d
+
+db-down:
+	docker compose -f deployments/docker/docker-compose.yml down
+
+# マイグレーション
+migrate:
+	migrate -path scripts/migrations -database "postgresql://testuser:testpass@localhost:5432/test_management?sslmode=disable" up
+
+migrate-down:
+	migrate -path scripts/migrations -database "postgresql://testuser:testpass@localhost:5432/test_management?sslmode=disable" down
+
+# テスト用DB操作
+test-db-up:
+	docker compose -f test/integration/postgres/docker-compose.test.yml up -d
+	@echo "テスト用DB(ポート5433)を起動しました"
+	@./scripts/setup/wait-for-db.sh
+
+test-db-down:
+	docker compose -f test/integration/postgres/docker-compose.test.yml down
+	@echo "テスト用DBを停止しました"
+
+#----------------------------------------
+# テスト関連コマンド
+#----------------------------------------
+.PHONY: test-integration test-graphql test-all-integration test-graphql-resolver
+
+# 統合テスト
+test-integration: test-db-up
+	@echo "リポジトリ層の統合テスト実行中..."
+	go test ./internal/infrastructure/persistence/postgres/... -v
+	make test-db-down
+
+test-graphql: test-db-up
+	@echo "GraphQL統合テスト実行中..."
+	TEST_ENV=true go test -v ./internal/interface/graphql/... -tags=integration
+	make test-db-down
+
+test-all-integration: test-db-up
+	@echo "すべての統合テスト実行中..."
+	go test ./internal/infrastructure/persistence/postgres/... -v
+	TEST_ENV=true go test -v ./internal/interface/graphql/... -tags=integration
+	make test-db-down
+
+test-graphql-resolver:
+	go test ./internal/interface/graphql/resolver/... -v
+
+#----------------------------------------
+# Docker関連コマンド
+#----------------------------------------
+.PHONY: docker-build docker-run
+.PHONY: docker-build-api docker-build-graphql docker-build-grpc 
+.PHONY: docker-run-api docker-run-graphql docker-run-grpc
+.PHONY: test-docker-api test-docker-graphql test-docker-grpc test-docker-all
+
+# 基本Dockerコマンド
+docker-build:
+	docker build -t go-ddd-ca .
+
+docker-run:
+	docker run -p 8080:8080 go-ddd-ca
+
+# サービス別Dockerビルド
+docker-build-api:
+	docker build -t test-management-api --build-arg SERVICE_TYPE=api .
+
+docker-build-graphql:
+	docker build -t test-management-graphql --build-arg SERVICE_TYPE=graphql .
+
+docker-build-grpc:
+	docker build -t test-management-grpc --build-arg SERVICE_TYPE=grpc .
+
+# サービス別Docker実行
+docker-run-api:
+	docker run -p 8080:8080 --name test-management-api-container test-management-api
+
+docker-run-graphql:
+	docker run -p 8080:8080 --name test-management-graphql-container test-management-graphql
+
+docker-run-grpc:
+	docker run -p 50051:50051 --name test-management-grpc-container test-management-grpc
+
+# Dockerテスト
+test-docker-api:
+	@echo "REST APIサービスのテストを実行..."
+	@chmod +x scripts/docker/test-api.sh
+	@scripts/docker/test-api.sh
+
+test-docker-graphql:
+	@echo "GraphQLサービスのテストを実行..."
+	@chmod +x scripts/docker/test-graphql.sh
+	@scripts/docker/test-graphql.sh
+
+test-docker-grpc:
+	@echo "gRPCサービスのテストを実行..."
+	@chmod +x scripts/docker/test-grpc.sh
+	@scripts/docker/test-grpc.sh
+
+test-docker-all: test-docker-api test-docker-graphql test-docker-grpc
+	@echo "すべてのDocker化サービスのテストが完了しました"
+
+# Docker Compose コマンド
+docker-compose-up-api:
+	SERVICE_TYPE=api PORT=8080 docker-compose -f deployments/docker/docker-compose.dev.yml up -d
+
+docker-compose-up-graphql:
+	SERVICE_TYPE=graphql PORT=8081 docker-compose -f deployments/docker/docker-compose.dev.yml up -d
+
+docker-compose-up-grpc:
+	SERVICE_TYPE=grpc GRPC_PORT=50051 docker-compose -f deployments/docker/docker-compose.dev.yml up -d
+
+docker-compose-down:
+	docker-compose -f deployments/docker/docker-compose.dev.yml down
+
+#----------------------------------------
+# AWS/Terraform関連コマンド
+#----------------------------------------
+.PHONY: tf-status tf-init tf-plan tf-apply tf-destroy
+.PHONY: verify-ssm-params update-tfvars update-tfvars-all
+.PHONY: prepare-ecr-image prepare-all-ecr-images
+
+# 基本Terraformコマンド
+tf-status:
+	@chmod +x scripts/terraform/status.sh
+	@scripts/terraform/status.sh $(TF_ENV)
+
+tf-init:
+	@chmod +x scripts/terraform/deploy.sh
+	@scripts/terraform/deploy.sh init $(TF_ENV)
+
+tf-plan:
+	@echo "Terraformプランを作成します（環境: $(TF_ENV), モジュール: $(MODULE)）..."
+	@cd deployments/terraform/environments/$(TF_ENV) && \
+	terraform init && \
+	terraform plan -out=tfplan
+
+tf-apply:
+	@echo "Terraformプランを適用します（環境: $(TF_ENV)）..."
+	@cd deployments/terraform/environments/$(TF_ENV) && \
+	terraform apply -auto-approve tfplan
+
+tf-destroy:
+	@chmod +x scripts/terraform/deploy.sh
+	@scripts/terraform/deploy.sh destroy $(TF_ENV) $(MODULE)
+
+# SSMパラメータ管理
+verify-ssm-params:
+	@echo "SSMパラメータの存在を確認しています..."
+	@if aws ssm get-parameter --name "/${TF_ENV}/database/password" --with-decryption >/dev/null 2>&1; then \
+		echo "SSMパラメータは既に存在します"; \
+	else \
+		echo "SSMパラメータが存在しません。作成します..."; \
+		if [ -z "$(TF_VAR_db_password)" ]; then \
+			echo "DB_PASSWORDが設定されていません"; \
+			read -sp "データベースパスワードを入力してください: " DB_PASS; \
+			echo; \
+			aws ssm put-parameter --name "/${TF_ENV}/database/password" --type SecureString --value "$$DB_PASS"; \
+		else \
+			aws ssm put-parameter --name "/${TF_ENV}/database/password" --type SecureString --value "$(TF_VAR_db_password)"; \
+		fi; \
+		echo "SSMパラメータを作成しました"; \
+	fi
+
+# terraform.tfvars更新
+update-tfvars:
+	@if [ -z "$(SERVICE_TYPE)" ]; then \
+		echo -e "${RED}エラー: SERVICE_TYPE環境変数を指定してください${NC}"; \
+		echo "例: SERVICE_TYPE=api make update-tfvars"; \
+		exit 1; \
+	fi
+	@echo "terraform.tfvarsを更新しています (サービス: $(SERVICE_TYPE))..."
+	@chmod +x scripts/terraform/update-tfvars.sh
+	@scripts/terraform/update-tfvars.sh $(TF_ENV) $(SERVICE_TYPE)
+
+update-tfvars-all:
+	@echo "すべてのサービスタイプのterraform.tfvarsを更新しています..."
+	@chmod +x scripts/terraform/update-tfvars.sh
+	@scripts/terraform/update-tfvars.sh $(TF_ENV)
+
+# ECRイメージ準備
+prepare-ecr-image:
+	@if [ -z "$(SERVICE_TYPE)" ]; then \
+		echo -e "${RED}エラー: SERVICE_TYPE環境変数を指定してください${NC}"; \
+		echo "例: SERVICE_TYPE=api make prepare-ecr-image"; \
+		exit 1; \
+	fi
+	@chmod +x scripts/docker/prepare-ecr-image.sh
+	@scripts/docker/prepare-ecr-image.sh $(SERVICE_TYPE) $(TF_ENV)
+
+prepare-all-ecr-images:
+	@echo "全サービスのECRイメージを準備しています..."
+	@make prepare-ecr-image SERVICE_TYPE=api TF_ENV=$(TF_ENV)
+	@make prepare-ecr-image SERVICE_TYPE=graphql TF_ENV=$(TF_ENV)
+	@make prepare-ecr-image SERVICE_TYPE=grpc TF_ENV=$(TF_ENV)
+	@echo "全サービスのECRイメージ準備が完了しました"
+
+#----------------------------------------
+# インフラストラクチャコンポーネントデプロイ
+#----------------------------------------
+.PHONY: deploy-network deploy-database deploy-db-complete deploy-ecs-cluster
+
+# 個別コンポーネントデプロイ
+deploy-network:
+	@chmod +x scripts/terraform/deploy.sh
+	@scripts/terraform/deploy.sh apply $(TF_ENV) network
+
+deploy-database:
+	@chmod +x scripts/terraform/deploy.sh
+	@scripts/terraform/deploy.sh apply $(TF_ENV) database
+
+deploy-db-complete:
+	@echo "データベースの完全デプロイを開始します..."
+	@if [ -f ~/.env.terraform ]; then \
+		echo "環境変数を読み込んでいます..."; \
+		. ~/.env.terraform; \
+	else \
+		echo "警告: ~/.env.terraform が見つかりません。データベース認証情報が設定されているか確認してください。"; \
+	fi
+	@echo "現在のインフラ状況を確認しています..."
+	@make tf-status
+	@echo "データベースデプロイのプランを作成しています..."
+	@make tf-plan MODULE=database
+	@echo "データベースをデプロイしています..."
+	@make deploy-database
+	@echo "デプロイ結果を確認しています..."
+	@make tf-status
+	@echo "データベースデプロイプロセスが完了しました"
+
+deploy-ecs-cluster:
+	@echo "共有ECSクラスターをデプロイします（環境: $(TF_ENV)）..."
+	@make tf-plan TF_ENV=$(TF_ENV) MODULE=shared-ecs-cluster
+	@make tf-apply TF_ENV=$(TF_ENV)
+
+#----------------------------------------
+# サービスデプロイコマンド
+#----------------------------------------
+.PHONY: deploy-api deploy-graphql deploy-grpc deploy-all-services deploy-infrastructure
+.PHONY: deploy-api-with-params deploy-graphql-with-params deploy-grpc-with-params deploy-all-with-params
+.PHONY: redeploy-api deploy-service-with-logs
+
+# サービスデプロイ (ECS + LB)
+deploy-api: 
+	@echo "APIサービスをデプロイします（環境: $(TF_ENV)）..."
+	@make deploy-ecs-service SERVICE_TYPE=api TF_ENV=$(TF_ENV)
+	@make deploy-service-lb SERVICE_TYPE=api TF_ENV=$(TF_ENV)
+
+deploy-graphql:
+	@echo "GraphQLサービスをデプロイします（環境: $(TF_ENV)）..."
+	@make deploy-ecs-service SERVICE_TYPE=graphql TF_ENV=$(TF_ENV)
+	@make deploy-service-lb SERVICE_TYPE=graphql TF_ENV=$(TF_ENV)
+
+deploy-grpc:
+	@echo "gRPCサービスをデプロイします（環境: $(TF_ENV)）..."
+	@make deploy-ecs-service SERVICE_TYPE=grpc TF_ENV=$(TF_ENV)
+	@make deploy-service-lb SERVICE_TYPE=grpc TF_ENV=$(TF_ENV)
+
+deploy-all-services: deploy-api deploy-graphql deploy-grpc
+	@echo "全サービスのデプロイが完了しました"
+
+# パラメータ確認付きサービスデプロイ
+deploy-api-with-params: verify-ssm-params deploy-api
+deploy-graphql-with-params: verify-ssm-params deploy-graphql
+deploy-grpc-with-params: verify-ssm-params deploy-grpc
+deploy-all-with-params: verify-ssm-params deploy-all-services
+
+# インフラ全体のデプロイ
+deploy-infrastructure: deploy-ecs-cluster deploy-all-services
+	@echo "インフラストラクチャのデプロイが完了しました"
+
+# APIサービスの再デプロイ
+redeploy-api:
+	@echo "APIサービスを再デプロイしています..."
+	@echo "1. サービスを停止中..."
+	aws ecs update-service --cluster $(TF_ENV)-shared-cluster --service $(TF_ENV)-api --desired-count 0
+	@echo "サービスが停止するまで待機中（30秒）..."
+	sleep 30
+	@echo "2. サービスを強制再デプロイで再開中..."
+	aws ecs update-service --cluster $(TF_ENV)-shared-cluster --service $(TF_ENV)-api --desired-count 1 --force-new-deployment
+	@echo "3. デプロイ状況を確認..."
+	aws ecs describe-services --cluster $(TF_ENV)-shared-cluster --services $(TF_ENV)-api --query 'services[0].{Status:status,RunningCount:runningCount,DesiredCount:desiredCount}'
+	@echo "4. ログ確認のために60秒待機..."
+	sleep 60
+	@echo "5. 最新のログを確認..."
+	$(eval LOG_GROUP := /ecs/$(TF_ENV)-api)
+	$(eval LOG_STREAM := $(shell aws logs describe-log-streams --log-group-name $(LOG_GROUP) --order-by LastEventTime --descending --limit 1 --query 'logStreams[0].logStreamName' --output text))
+	aws logs get-log-events --log-group-name $(LOG_GROUP) --log-stream-name $(LOG_STREAM) --limit 30
+
+#----------------------------------------
+# サービスコンポーネントデプロイ補助コマンド
+#----------------------------------------
+.PHONY: deploy-ecs-service deploy-service-lb verify-service verify-all-services
+.PHONY: prepare-service
+
+# ECSサービスデプロイ
+deploy-ecs-service:
+	@if [ -z "$(SERVICE_TYPE)" ]; then \
+		echo -e "${RED}エラー: SERVICE_TYPE環境変数を指定してください${NC}"; \
+		echo "例: SERVICE_TYPE=api make deploy-ecs-service"; \
+		exit 1; \
+	fi
+	@echo "ECSサービスをデプロイします（サービス: $(SERVICE_TYPE), 環境: $(TF_ENV)）..."
+	@make tf-plan TF_ENV=$(TF_ENV) MODULE=ecs-service SERVICE_TYPE=$(SERVICE_TYPE)
+	@make tf-apply TF_ENV=$(TF_ENV)
+
+# ロードバランサーデプロイ
+deploy-service-lb:
+	@if [ -z "$(SERVICE_TYPE)" ]; then \
+		echo -e "${RED}エラー: SERVICE_TYPE環境変数を指定してください${NC}"; \
+		echo "例: SERVICE_TYPE=api make deploy-service-lb"; \
+		exit 1; \
+	fi
+	@echo "サービス用ロードバランサーをデプロイします（サービス: $(SERVICE_TYPE), 環境: $(TF_ENV)）..."
+	@make tf-plan TF_ENV=$(TF_ENV) MODULE=load-balancer SERVICE_TYPE=$(SERVICE_TYPE)
+	@make tf-apply TF_ENV=$(TF_ENV)
+
+# サービス検証
+verify-service:
+	@if [ -z "$(SERVICE_TYPE)" ]; then \
+		echo -e "${RED}エラー: SERVICE_TYPE環境変数を指定してください${NC}"; \
+		echo "例: SERVICE_TYPE=api make verify-service"; \
+		exit 1; \
+	fi
+	@echo "サービスの動作を検証しています（サービス: $(SERVICE_TYPE), 環境: $(TF_ENV)）..."
+	@chmod +x scripts/verification/verify-ecs-$(SERVICE_TYPE).sh
+	@scripts/verification/verify-ecs-$(SERVICE_TYPE).sh $(TF_ENV)
+
+verify-all-services:
+	@echo "全サービスの動作を検証しています（環境: $(TF_ENV)）..."
+	@make verify-service SERVICE_TYPE=api TF_ENV=$(TF_ENV) || echo "警告: APIサービスの検証に失敗しました"
+	@make verify-service SERVICE_TYPE=graphql TF_ENV=$(TF_ENV) || echo "警告: GraphQLサービスの検証に失敗しました"
+	@make verify-service SERVICE_TYPE=grpc TF_ENV=$(TF_ENV) || echo "警告: gRPCサービスの検証に失敗しました"
+	@echo "全サービスの検証が完了しました"
+
+# 単一サービス準備
+prepare-service:
+	@echo "サービスの準備を開始します ($(SERVICE_TYPE))..."
+	@make prepare-ecr-image SERVICE_TYPE=$(SERVICE_TYPE) TF_ENV=$(TF_ENV)
+	@make update-tfvars SERVICE_TYPE=$(SERVICE_TYPE) TF_ENV=$(TF_ENV)
+	@make verify-ssm-params TF_ENV=$(TF_ENV)
+
+# サービスデプロイとログ確認
+deploy-service-with-logs:
+	@echo "サービスのデプロイと検証を開始します ($(SERVICE_TYPE))..."
+	@make deploy-$(SERVICE_TYPE) TF_ENV=$(TF_ENV)
+	@echo "デプロイの安定化を待機しています (30秒)..."
+	@sleep 30
+	@LOG_GROUP="/ecs/$(TF_ENV)-$(SERVICE_TYPE)" && \
+	LOG_STREAM=$$(aws logs describe-log-streams --log-group-name $$LOG_GROUP --order-by LastEventTime --descending --limit 1 --query 'logStreams[0].logStreamName' --output text) && \
+	echo "最新のログを確認しています..." && \
+	aws logs get-log-events --log-group-name $$LOG_GROUP --log-stream-name $$LOG_STREAM --limit 20
+	@make verify-service SERVICE_TYPE=$(SERVICE_TYPE) TF_ENV=$(TF_ENV) || (echo "警告: $(SERVICE_TYPE)サービスの検証に失敗しました。ログを確認してください。" && exit 1)
+
+#----------------------------------------
+# アプリケーションデプロイワークフロー
+#----------------------------------------
+.PHONY: deploy-app-workflow deploy-app-workflow-secure
+
+# 完全デプロイワークフロー
+deploy-app-workflow:
+	@echo "アプリケーションのデプロイワークフローを開始します..."
+	@echo "1. ECRイメージを準備しています..."
+	@make prepare-all-ecr-images TF_ENV=$(TF_ENV)
+	@echo "2. terraform.tfvarsを更新しています..."
+	@make update-tfvars-all TF_ENV=$(TF_ENV)
+	@echo "3. インフラストラクチャをデプロイしています..."
+	@make deploy-infrastructure TF_ENV=$(TF_ENV)
+	@echo "4. デプロイの安定化を待機しています (60秒)..."
+	@sleep 60
+	@echo "5. デプロイ結果を検証しています..."
+	@make verify-all-services TF_ENV=$(TF_ENV) || (echo "警告: 一部のサービス検証に失敗しました。詳細なログを確認してください。" && exit 1)
+	@echo "アプリケーションデプロイワークフローが完了しました"
+
+# セキュアデプロイワークフロー (パラメータ確認付き)
+deploy-app-workflow-secure:
+	@echo "アプリケーションのセキュアなデプロイワークフローを開始します..."
+	@echo "1. SSMパラメータを確認・作成しています..."
+	@make verify-ssm-params TF_ENV=$(TF_ENV)
+	@echo "2. ECRイメージを準備しています..."
+	@make prepare-all-ecr-images TF_ENV=$(TF_ENV)
+	@echo "3. terraform.tfvarsを更新しています..."
+	@make update-tfvars-all TF_ENV=$(TF_ENV)
+	@echo "4. インフラストラクチャをデプロイしています..."
+	@make deploy-infrastructure TF_ENV=$(TF_ENV)
+	@echo "5. デプロイの安定化を待機しています (60秒)..."
+	@sleep 60
+	@echo "6. デプロイ結果を検証しています..."
+	@make verify-all-services TF_ENV=$(TF_ENV) || (echo "警告: 一部のサービス検証に失敗しました。詳細なログを確認してください。" && exit 1)
+	@echo "アプリケーションデプロイワークフローが完了しました"

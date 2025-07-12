@@ -1,0 +1,10 @@
+--- main.tf.orig	2025-04-07 14:00:00.000000000 +0900
++++ main.tf	2025-04-07 14:30:00.000000000 +0900
+@@ -183,6 +185,7 @@
+   db_user         = var.db_username
+   db_sslmode      = "require"
+   db_password_arn = module.secrets.db_password_arn
++  target_group_arn = module.loadbalancer_grpc.target_group_arn
+ 
+   depends_on = [module.shared_ecs_cluster, module.database]
+ }

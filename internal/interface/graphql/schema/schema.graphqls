@@ -1,0 +1,115 @@
+scalar DateTime
+
+type TestSuite {
+  id: ID!
+  name: String!
+  description: String
+  status: SuiteStatus!
+  estimatedStartDate: DateTime!
+  estimatedEndDate: DateTime!
+  requireEffortComment: Boolean!
+  progress: Float!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  groups: [TestGroup!]
+}
+
+type TestGroup {
+  id: ID!
+  name: String!
+  description: String
+  displayOrder: Int!
+  suiteId: ID!
+  status: SuiteStatus!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+  cases: [TestCase!]
+}
+
+type TestCase {
+  id: ID!
+  title: String!
+  description: String
+  status: TestStatus!
+  priority: Priority!
+  plannedEffort: Float
+  actualEffort: Float
+  isDelayed: Boolean!
+  delayDays: Int
+  groupId: ID!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+enum SuiteStatus {
+  PREPARATION
+  IN_PROGRESS
+  COMPLETED
+  SUSPENDED
+}
+
+enum TestStatus {
+  CREATED
+  TESTING
+  FIXING
+  REVIEW_WAITING
+  REVIEWING
+  COMPLETED
+  RETESTING
+}
+
+enum Priority {
+  CRITICAL
+  HIGH
+  MEDIUM
+  LOW
+}
+
+type PageInfo {
+  hasNextPage: Boolean!
+  hasPreviousPage: Boolean!
+  startCursor: String
+  endCursor: String
+}
+
+type TestSuiteConnection {
+  edges: [TestSuiteEdge!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+type TestSuiteEdge {
+  node: TestSuite!
+  cursor: String!
+}
+
+input CreateTestSuiteInput {
+  name: String!
+  description: String
+  estimatedStartDate: DateTime!
+  estimatedEndDate: DateTime!
+  requireEffortComment: Boolean
+}
+
+input UpdateTestSuiteInput {
+  name: String
+  description: String
+  estimatedStartDate: DateTime
+  estimatedEndDate: DateTime
+  requireEffortComment: Boolean
+}
+
+type Query {
+  testSuite(id: ID!): TestSuite
+  testSuites(status: SuiteStatus, page: Int, pageSize: Int): TestSuiteConnection!
+}
+
+type Mutation {
+  createTestSuite(input: CreateTestSuiteInput!): TestSuite!
+  updateTestSuite(id: ID!, input: UpdateTestSuiteInput!): TestSuite!
+  updateTestSuiteStatus(id: ID!, status: SuiteStatus!): TestSuite!
+}
+
+type Subscription {
+  testSuiteStatusChanged: TestSuite!
+}

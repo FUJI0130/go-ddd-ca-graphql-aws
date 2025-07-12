@@ -1,0 +1,3 @@
+[submodule "frontend"]
+	path = frontend
+	url = git@gitlab.com:portfolio6831944/go-ddd-ca-frontend.git

@@ -1,0 +1,53 @@
+schema:
+  - internal/interface/graphql/schema/schema.graphqls
+  - internal/interface/graphql/schema/auth.graphqls  # 認証スキーマを追加
+  - internal/interface/graphql/schema/role_test.graphqls
+  - internal/interface/graphql/schema/user_management.graphqls  # ← 追加
+
+exec:
+  filename: internal/interface/graphql/generated/generated.go
+  package: generated
+
+model:
+  filename: internal/interface/graphql/model/models_gen.go
+  package: model
+
+resolver:
+  layout: follow-schema
+  dir: internal/interface/graphql/resolver
+  package: resolver
+
+
+# 代わりに以下のようにTestSuite型を明示的に定義
+models:
+  ID:
+    model:
+      - github.com/99designs/gqlgen/graphql.ID
+  Int:
+    model:
+      - github.com/99designs/gqlgen/graphql.Int
+  DateTime:
+    model:
+      - github.com/99designs/gqlgen/graphql.Time
+  TestSuite:
+    model: github.com/FUJI0130/go-ddd-ca/internal/interface/graphql/model.TestSuite
+    fields:
+      groups:
+        resolver: true
+  TestGroup:
+    model: github.com/FUJI0130/go-ddd-ca/internal/interface/graphql/model.TestGroup
+    fields:
+      cases:
+        resolver: true
+  TestCase:
+    model: github.com/FUJI0130/go-ddd-ca/internal/interface/graphql/model.TestCase
+    # 認証関連のモデルを追加
+  User:
+    model: github.com/FUJI0130/go-ddd-ca/internal/interface/graphql/model.User
+  AuthPayload:
+    model: github.com/FUJI0130/go-ddd-ca/internal/interface/graphql/model.AuthPayload
+
+# ディレクティブ設定を簡略化
+directives:
+  auth: {}
+  hasRole: {}

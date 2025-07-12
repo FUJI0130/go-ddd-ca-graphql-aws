@@ -1,0 +1,41 @@
+[0;34m[INFO][0m === フロントエンドS3アップロード開始 ===
+[0;34m[INFO][0m 開始時刻: 2025年  6月  5日 木曜日 11:16:27 JST
+[0;34m[INFO][0m 環境: development
+[0;34m[INFO][0m 環境変数を読み込み中...
+[0;32m[SUCCESS][0m 環境変数読み込み完了
+[0;34m[INFO][0m 前提条件を確認中...
+[0;32m[SUCCESS][0m 前提条件確認完了
+[0;34m[INFO][0m S3バケット名を取得中...
+[0;32m[SUCCESS][0m S3バケット名: development-test-management-frontend
+[0;34m[INFO][0m アップロードサイズを計算中...
+[0;34m[INFO][0m アップロード対象:
+[0;34m[INFO][0m   ファイル数: 4
+[0;34m[INFO][0m   総サイズ: 2.5M
+[0;34m[INFO][0m   index.html: 4.0K
+[0;34m[INFO][0m   assets/: 2.4M (3ファイル)
+[0;34m[INFO][0m S3へのアップロードを開始...
+[0;34m[INFO][0m 既存ファイルの情報を取得中...
+[0;34m[INFO][0m 既存ファイル数: 4
+[0;34m[INFO][0m ファイルをアップロード中...
+[0;33m[WARNING][0m   ✗ 削除: s3://development-test-management-frontend/assets/index-iQW1DtJd.js
+[0;34m[INFO][0m index.htmlのキャッシュ設定を調整中...
+[0;32m[SUCCESS][0m S3アップロード完了
+[0;34m[INFO][0m アップロード結果を確認中...
+[0;32m[SUCCESS][0m アップロード結果:
+[0;32m[SUCCESS][0m   ファイル数: 4
+[0;32m[SUCCESS][0m   総サイズ: 2503952 
+[0;34m[INFO][0m 主要ファイルの存在確認:
+[0;32m[SUCCESS][0m   ✓ index.html
+[0;32m[SUCCESS][0m   ✓ assets/ (3ファイル)
+[0;34m[INFO][0m CloudFront情報を取得中...
+[0;33m[WARNING][0m CloudFront URLを取得できませんでした
+[0;34m[INFO][0m S3ストレージ使用量:
+[0;34m[INFO][0m   ストレージ使用量: 2 MB
+[0;34m[INFO][0m   概算月額コスト: $0 (ストレージのみ)
+[0;32m[SUCCESS][0m === フロントエンドS3アップロード完了 ===
+[0;34m[INFO][0m 完了時刻: 2025年  6月  5日 木曜日 11:17:12 JST
+[0;34m[INFO][0m ログファイル: /home/fuji0130/workspace/go-DDD-CA/go-ddd-ca/frontend/logs/upload-frontend-20250605_111627.log
+[0;34m[INFO][0m === 次のステップ ===
+[0;34m[INFO][0m 1. CloudFrontキャッシュ無効化: make invalidate-cloudfront-cache
+[0;34m[INFO][0m 2. 動作確認: make verify-frontend-health
+[0;34m[INFO][0m 3. ブラウザでアクセス: '(URL取得失敗)'

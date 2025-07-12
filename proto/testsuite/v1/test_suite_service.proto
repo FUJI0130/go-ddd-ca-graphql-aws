@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package testsuite.v1;
+
+import "proto/testsuite/v1/test_suite.proto";
+
+option go_package = "gitlab.com/portfolio6831944/GO-DDD-CA/proto/testsuite/v1;testsuitev1";
+
+// テストスイートサービス定義
+service TestSuiteService {
+  // テストスイートの作成
+  rpc CreateTestSuite(CreateTestSuiteRequest) returns (TestSuite);
+
+  // テストスイートの取得
+  rpc GetTestSuite(GetTestSuiteRequest) returns (TestSuite);
+
+  // テストスイートの更新
+  rpc UpdateTestSuite(UpdateTestSuiteRequest) returns (TestSuite);
+
+  // テストスイートのステータス更新
+  rpc UpdateTestSuiteStatus(UpdateTestSuiteStatusRequest) returns (TestSuite);
+
+  // テストスイート一覧の取得
+  rpc ListTestSuites(ListTestSuitesRequest) returns (ListTestSuitesResponse);
+
+  // テストスイートのストリーミング監視
+  rpc WatchTestSuite(GetTestSuiteRequest) returns (stream TestSuite);
+}

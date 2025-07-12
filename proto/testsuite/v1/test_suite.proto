@@ -1,0 +1,80 @@
+syntax = "proto3";
+
+package testsuite.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "gitlab.com/portfolio6831944/GO-DDD-CA/proto/testsuite/v1;testsuitev1";
+
+// テストスイート定義
+message TestSuite {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  SuiteStatus status = 4;
+  google.protobuf.Timestamp estimated_start_date = 5;
+  google.protobuf.Timestamp estimated_end_date = 6;
+  bool require_effort_comment = 7;
+  float progress = 8;
+  google.protobuf.Timestamp created_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+}
+
+// ステータス定義
+enum SuiteStatus {
+  SUITE_STATUS_UNSPECIFIED = 0;
+  SUITE_STATUS_PREPARATION = 1;
+  SUITE_STATUS_IN_PROGRESS = 2;
+  SUITE_STATUS_COMPLETED = 3;
+  SUITE_STATUS_SUSPENDED = 4;
+}
+
+// テストスイート作成リクエスト
+message CreateTestSuiteRequest {
+  string name = 1;
+  string description = 2;
+  google.protobuf.Timestamp estimated_start_date = 3;
+  google.protobuf.Timestamp estimated_end_date = 4;
+  bool require_effort_comment = 5;
+}
+
+// テストスイート取得リクエスト
+message GetTestSuiteRequest {
+  string id = 1;
+}
+
+// テストスイート更新リクエスト
+message UpdateTestSuiteRequest {
+  string id = 1;
+  UpdateTestSuiteParams params = 2;
+}
+
+// 更新パラメータ
+message UpdateTestSuiteParams {
+  optional string name = 1;
+  optional string description = 2;
+  optional google.protobuf.Timestamp estimated_start_date = 3;
+  optional google.protobuf.Timestamp estimated_end_date = 4;
+  optional bool require_effort_comment = 5;
+}
+
+// ステータス更新リクエスト
+message UpdateTestSuiteStatusRequest {
+  string id = 1;
+  SuiteStatus status = 2;
+}
+
+// テストスイート一覧取得リクエスト
+message ListTestSuitesRequest {
+  optional SuiteStatus status = 1;
+  optional google.protobuf.Timestamp start_date = 2;
+  optional google.protobuf.Timestamp end_date = 3;
+  optional int32 page = 4;
+  optional int32 page_size = 5;
+}
+
+// テストスイート一覧取得レスポンス
+message ListTestSuitesResponse {
+  repeated TestSuite test_suites = 1;
+  int32 total = 2;
+}

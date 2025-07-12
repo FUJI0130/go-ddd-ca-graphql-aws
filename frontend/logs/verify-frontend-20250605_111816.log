@@ -1,0 +1,17 @@
+[0;34m[INFO][0m === フロントエンド動作検証開始 ===
+[0;34m[INFO][0m 開始時刻: 2025年  6月  5日 木曜日 11:18:16 JST
+[0;34m[INFO][0m 環境: development
+[0;34m[INFO][0m 環境変数を読み込み中...
+[0;32m[SUCCESS][0m 環境変数読み込み完了
+[0;34m[INFO][0m 前提条件を確認中...
+[0;32m[SUCCESS][0m ✓ 前提条件: curl コマンドが利用可能
+[0;32m[SUCCESS][0m ✓ 前提条件: aws コマンドが利用可能
+[0;32m[SUCCESS][0m ✓ 前提条件: terraform コマンドが利用可能
+[0;32m[SUCCESS][0m ✓ 前提条件: jq コマンドが利用可能
+[0;32m[SUCCESS][0m ✓ AWS認証: AWS認証情報が有効
+[0;34m[INFO][0m デプロイ情報を取得中...
+[0;31m[ERROR][0m ✗ CloudFront URL: CloudFront URLが取得できません
+[0;31m[ERROR][0m ✗ S3バケット: S3バケット名が取得できません
+[0;33m[WARNING][0m ⚠ GraphQL API: GraphQL API情報が取得できません（バックエンド未デプロイの可能性）
+[0;34m[INFO][0m S3バケットの健全性を確認中...
+[0;31m[ERROR][0m ✗ S3存在確認: S3バケット名が不明
